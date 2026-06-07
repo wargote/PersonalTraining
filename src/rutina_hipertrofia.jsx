@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { supabase } from "./supabaseClient";
 
 const days = [
   {
@@ -121,11 +122,80 @@ const volumeSummary = [
   { m: "Pantorrilla", s: 8, days: "Mar + Sáb" },
 ];
 
-export default function GymRoutine() {
+// --- Helpers de conversión entre el formato local y las filas de Supabase ---
+
+// "lunes::Press inclinado" -> ["lunes", "Press inclinado"]
+const splitKey = (key) => {
+  const idx = key.indexOf("::");
+  if (idx === -1) return [key, ""];
+  return [key.slice(0, idx), key.slice(idx + 2)];
+};
+
+// reps puede venir como array de strings/números o como string suelto -> int[]
+const repsToIntArray = (reps) => {
+  if (reps == null) return [];
+  const arr = Array.isArray(reps) ? reps : [reps];
+  return arr
+    .map((r) => parseInt(r, 10))
+    .filter((n) => !Number.isNaN(n));
+};
+
+// localStorage (gym-weight-history) -> filas listas para upsert en exercise_logs
+const localCacheToRows = (userId) => {
+  let cache;
+  try {
+    cache = JSON.parse(localStorage.getItem("gym-weight-history") || "{}");
+  } catch {
+    return [];
+  }
+  const rows = [];
+  Object.entries(cache).forEach(([key, entries]) => {
+    const [dayId, exerciseName] = splitKey(key);
+    if (!dayId || !exerciseName || !Array.isArray(entries)) return;
+    entries.forEach((e) => {
+      const weight = parseFloat(e.weight);
+      if (!e.date || Number.isNaN(weight)) return;
+      rows.push({
+        user_id: userId,
+        day_id: dayId,
+        exercise_name: exerciseName,
+        log_date: e.date,
+        weight,
+        reps: repsToIntArray(e.reps),
+      });
+    });
+  });
+  return rows;
+};
+
+// filas de exercise_logs -> mapa { "dayId::ejercicio": [{ date, weight, reps }, ...] }
+const rowsToHistory = (rows) => {
+  const map = {};
+  rows.forEach((row) => {
+    const key = `${row.day_id}::${row.exercise_name}`;
+    if (!map[key]) map[key] = [];
+    const entry = { date: row.log_date, weight: String(row.weight) };
+    if (Array.isArray(row.reps) && row.reps.length) {
+      entry.reps = row.reps.map(String);
+    }
+    map[key].push(entry);
+  });
+  // Cada lista ordenada de más reciente a más antigua (la query ya viene desc, pero aseguramos).
+  Object.values(map).forEach((list) =>
+    list.sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0))
+  );
+  return map;
+};
+
+export default function GymRoutine({ session }) {
+  const userId = session.user.id;
+  const userEmail = session.user.email;
+
   const [activeDay, setActiveDay] = useState(days[0]);
   const [completedSets, setCompletedSets] = useState({});
   const [view, setView] = useState("rutina"); // "rutina" | "volumen" | "records"
-  // Historial de peso por ejercicio: { "dayId::ejercicio": [{ date, weight }, ...] } (más reciente primero)
+  // Historial de peso por ejercicio: { "dayId::ejercicio": [{ date, weight, reps }, ...] } (más reciente primero)
+  // Se inicializa desde el caché local para pintar al instante; luego se reemplaza con lo de Supabase.
   const [weightHistory, setWeightHistory] = useState(() => {
     try {
       const savedHistory = localStorage.getItem("gym-weight-history");
@@ -154,10 +224,59 @@ export default function GymRoutine() {
   const [repDrafts, setRepDrafts] = useState({}); // repeticiones logradas
   // Qué ejercicios tienen el historial desplegado
   const [openHistory, setOpenHistory] = useState({});
+  const [syncState, setSyncState] = useState("loading"); // loading | ready | error
 
+  // Caché offline: cada cambio del historial se guarda también en localStorage.
   useEffect(() => {
     localStorage.setItem("gym-weight-history", JSON.stringify(weightHistory));
   }, [weightHistory]);
+
+  // Al entrar: migrar lo que haya en localStorage (una sola vez) y cargar desde Supabase.
+  useEffect(() => {
+    let cancelled = false;
+
+    const migrateThenLoad = async () => {
+      try {
+        // 1) Migración única de los datos locales hacia la BD.
+        const migrationFlag = `gym-migrated-v1-${userId}`;
+        if (!localStorage.getItem(migrationFlag)) {
+          const rows = localCacheToRows(userId);
+          if (rows.length) {
+            const { error } = await supabase
+              .from("exercise_logs")
+              .upsert(rows, { onConflict: "user_id,day_id,exercise_name,log_date" });
+            if (error) throw error;
+          }
+          localStorage.setItem(migrationFlag, "1");
+        }
+
+        // 2) Carga de todo el historial del usuario desde la BD.
+        const { data, error } = await supabase
+          .from("exercise_logs")
+          .select("day_id, exercise_name, log_date, weight, reps")
+          .order("log_date", { ascending: false });
+        if (error) throw error;
+
+        if (!cancelled) {
+          setWeightHistory(rowsToHistory(data || []));
+          setSyncState("ready");
+        }
+      } catch (err) {
+        console.error("Error sincronizando con Supabase:", err);
+        if (!cancelled) setSyncState("error");
+      }
+    };
+
+    migrateThenLoad();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId]);
+
+  const logout = async () => {
+    await supabase.auth.signOut();
+  };
 
   const getWeightKey = (dayId, exerciseName) => `${dayId}::${exerciseName}`;
   const todayStr = () => new Date().toISOString().slice(0, 10);
@@ -248,9 +367,11 @@ export default function GymRoutine() {
     const reps = [];
     for (let i = 0; i < numSets; i++) reps.push(String(getRepDraft(dayId, name, i)).trim());
     while (reps.length && reps[reps.length - 1] === "") reps.pop(); // quitar series vacías al final
+    const today = todayStr();
+
+    // Actualización optimista del estado local (se ve al instante).
     setWeightHistory((prev) => {
       const list = prev[key] ? [...prev[key]] : [];
-      const today = todayStr();
       const entry = { date: today, weight: value };
       if (reps.length) entry.reps = reps;
       const idx = list.findIndex((e) => e.date === today);
@@ -261,6 +382,26 @@ export default function GymRoutine() {
       }
       return { ...prev, [key]: list };
     });
+
+    // Persistir en Supabase (upsert por la clave única usuario+día+ejercicio+fecha).
+    supabase
+      .from("exercise_logs")
+      .upsert(
+        {
+          user_id: userId,
+          day_id: dayId,
+          exercise_name: name,
+          log_date: today,
+          weight: parseFloat(value),
+          reps: repsToIntArray(reps),
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "user_id,day_id,exercise_name,log_date" }
+      )
+      .then(({ error }) => {
+        if (error) console.error("No se pudo guardar en Supabase:", error);
+      });
+
     // Limpiar los drafts para que vuelvan a reflejar lo guardado
     setDrafts((prev) => {
       const next = { ...prev };
@@ -283,6 +424,15 @@ export default function GymRoutine() {
       else delete next[key];
       return next;
     });
+
+    // Borrar también en Supabase.
+    supabase
+      .from("exercise_logs")
+      .delete()
+      .match({ user_id: userId, day_id: dayId, exercise_name: name, log_date: date })
+      .then(({ error }) => {
+        if (error) console.error("No se pudo borrar en Supabase:", error);
+      });
   };
 
   const toggleHistory = (dayId, name) => {
@@ -351,6 +501,24 @@ export default function GymRoutine() {
                 {v.label}
               </button>
             ))}
+            <button
+              onClick={logout}
+              title={`Conectado como ${userEmail} — toca para salir`}
+              style={{
+                background: "transparent",
+                border: "1px solid #222",
+                borderRadius: "8px",
+                color: "#555",
+                fontSize: "9px",
+                letterSpacing: "2px",
+                padding: "6px 12px",
+                cursor: "pointer",
+                fontFamily: "'DM Mono', monospace",
+                marginTop: "2px",
+              }}
+            >
+              {syncState === "loading" ? "···" : syncState === "error" ? "⚠ OFFLINE" : "SALIR"}
+            </button>
           </div>
         </div>
 

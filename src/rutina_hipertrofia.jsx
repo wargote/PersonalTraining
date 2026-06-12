@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { supabase } from "./supabaseClient";
 
 const days = [
@@ -190,13 +190,42 @@ const rowsToHistory = (rows) => {
   return map;
 };
 
+// --- Helpers de progreso (volumen / tonelaje y agrupación por semana) ---
+
+// Lunes (YYYY-MM-DD) de la semana a la que pertenece una fecha ISO.
+const weekStart = (iso) => {
+  const d = new Date(iso + "T00:00:00");
+  const dow = (d.getDay() + 6) % 7; // 0 = lunes
+  d.setDate(d.getDate() - dow);
+  return d.toISOString().slice(0, 10);
+};
+
+// Tonelaje de una entrada: peso × suma de repeticiones registradas.
+// Si no hay reps anotadas, no se puede calcular volumen real → 0.
+const entryVolume = (entry) => {
+  const w = parseFloat(entry.weight);
+  if (isNaN(w)) return 0;
+  const reps = Array.isArray(entry.reps) ? entry.reps : entry.reps != null ? [entry.reps] : [];
+  const totalReps = reps
+    .map((r) => parseInt(r, 10))
+    .filter((n) => !isNaN(n))
+    .reduce((a, b) => a + b, 0);
+  return totalReps > 0 ? w * totalReps : 0;
+};
+
+// Formatea kilos grandes de forma compacta: 12450 -> "12.4k"
+const fmtKg = (n) => {
+  if (n >= 1000) return `${(n / 1000).toFixed(1)}k`;
+  return String(Math.round(n));
+};
+
 export default function GymRoutine({ session }) {
   const userId = session.user.id;
   const userEmail = session.user.email;
 
   const [activeDay, setActiveDay] = useState(days[0]);
   const [completedSets, setCompletedSets] = useState({});
-  const [view, setView] = useState("rutina"); // "rutina" | "volumen" | "records"
+  const [view, setView] = useState("rutina"); // "rutina" | "progreso" | "volumen" | "records"
   // Historial de peso por ejercicio: { "dayId::ejercicio": [{ date, weight, reps }, ...] } (más reciente primero)
   // Se inicializa desde el caché local para pintar al instante; luego se reemplaza con lo de Supabase.
   const [weightHistory, setWeightHistory] = useState(() => {
@@ -229,10 +258,51 @@ export default function GymRoutine({ session }) {
   const [openHistory, setOpenHistory] = useState({});
   const [syncState, setSyncState] = useState("loading"); // loading | ready | error
 
+  // Notas de sesión por día+fecha: { "dayId::YYYY-MM-DD": { rpe, note } }
+  const [sessionNotes, setSessionNotes] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem("gym-session-notes") || "{}");
+    } catch {
+      return {};
+    }
+  });
+  // Borradores de la nota que se está escribiendo antes de guardarla
+  const [noteDrafts, setNoteDrafts] = useState({});
+
   // Caché offline: cada cambio del historial se guarda también en localStorage.
   useEffect(() => {
     localStorage.setItem("gym-weight-history", JSON.stringify(weightHistory));
   }, [weightHistory]);
+
+  // Caché offline de las notas.
+  useEffect(() => {
+    localStorage.setItem("gym-session-notes", JSON.stringify(sessionNotes));
+  }, [sessionNotes]);
+
+  // Carga de notas desde Supabase (falla en silencio si la tabla aún no existe).
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const { data, error } = await supabase
+        .from("session_notes")
+        .select("day_id, log_date, rpe, note")
+        .order("log_date", { ascending: false });
+      if (cancelled) return;
+      if (error) {
+        console.warn("session_notes no disponible (¿falta crear la tabla?):", error.message);
+        return;
+      }
+      const map = {};
+      (data || []).forEach((r) => {
+        map[`${r.day_id}::${r.log_date}`] = { rpe: r.rpe ?? null, note: r.note || "" };
+      });
+      setSessionNotes((prev) => ({ ...prev, ...map }));
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId]);
 
   // Al entrar: migrar lo que haya en localStorage (una sola vez) y cargar desde Supabase.
   useEffect(() => {
@@ -292,6 +362,61 @@ export default function GymRoutine({ session }) {
 
   const getHistory = (dayId, name) => weightHistory[getWeightKey(dayId, name)] || [];
   const getLastEntry = (dayId, name) => getHistory(dayId, name)[0] || null;
+
+  // --- Notas de sesión ---
+  const noteKey = (dayId, date) => `${dayId}::${date}`;
+  const getSavedNote = (dayId, date) => sessionNotes[noteKey(dayId, date)] || { rpe: null, note: "" };
+  const getNoteDraft = (dayId, date) => {
+    const key = noteKey(dayId, date);
+    return noteDrafts[key] !== undefined ? noteDrafts[key] : getSavedNote(dayId, date);
+  };
+  const setNoteDraft = (dayId, date, patch) => {
+    const key = noteKey(dayId, date);
+    setNoteDrafts((prev) => ({
+      ...prev,
+      [key]: { ...getNoteDraft(dayId, date), ...patch },
+    }));
+  };
+
+  const saveNote = (dayId, date) => {
+    const key = noteKey(dayId, date);
+    const draft = getNoteDraft(dayId, date);
+    const rpe = draft.rpe ?? null;
+    const note = (draft.note || "").trim();
+
+    // Si la nota queda vacía, la eliminamos.
+    if (rpe == null && note === "") {
+      setSessionNotes((prev) => {
+        const next = { ...prev };
+        delete next[key];
+        return next;
+      });
+      supabase
+        .from("session_notes")
+        .delete()
+        .match({ user_id: userId, day_id: dayId, log_date: date })
+        .then(({ error }) => {
+          if (error) console.warn("No se pudo borrar la nota en Supabase:", error.message);
+        });
+    } else {
+      setSessionNotes((prev) => ({ ...prev, [key]: { rpe, note } }));
+      supabase
+        .from("session_notes")
+        .upsert(
+          { user_id: userId, day_id: dayId, log_date: date, rpe, note, updated_at: new Date().toISOString() },
+          { onConflict: "user_id,day_id,log_date" }
+        )
+        .then(({ error }) => {
+          if (error) console.warn("No se pudo guardar la nota en Supabase:", error.message);
+        });
+    }
+
+    setNoteDrafts((prev) => {
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
+  };
 
   const getDraft = (dayId, name) => {
     const key = getWeightKey(dayId, name);
@@ -450,6 +575,73 @@ export default function GymRoutine({ session }) {
 
   const isSetDone = (exIdx, setIdx) => completedSets[`${activeDay.id}-${exIdx}-${setIdx}`];
 
+  // Estadísticas de progreso global (se recalculan solo cuando cambia el historial o las notas).
+  const stats = useMemo(() => {
+    // Volumen (tonelaje) y sesiones agrupados por semana.
+    const byWeek = {};               // week -> tonelaje
+    const sessionsByWeek = {};       // week -> Set("dayId::date")
+    const sessionSet = new Set();    // todas las sesiones distintas (dayId::date)
+    let totalVol = 0;
+
+    Object.entries(weightHistory).forEach(([key, list]) => {
+      const dayId = key.split("::")[0];
+      list.forEach((e) => {
+        const wk = weekStart(e.date);
+        sessionSet.add(`${dayId}::${e.date}`);
+        (sessionsByWeek[wk] || (sessionsByWeek[wk] = new Set())).add(`${dayId}::${e.date}`);
+        const vol = entryVolume(e);
+        if (vol > 0) {
+          byWeek[wk] = (byWeek[wk] || 0) + vol;
+          totalVol += vol;
+        }
+      });
+    });
+
+    const weekly = Object.keys(byWeek)
+      .sort()
+      .map((week) => ({ week, vol: byWeek[week], sessions: sessionsByWeek[week]?.size || 0 }));
+
+    // Ejercicios que más subieron (peso máximo actual vs. primer registro).
+    const improved = [];
+    Object.entries(weightHistory).forEach(([key, list]) => {
+      if (!list || list.length < 2) return;
+      const [dayId, name] = splitKey(key);
+      const weights = list.map((e) => parseFloat(e.weight)).filter((n) => !isNaN(n));
+      if (weights.length < 2) return;
+      const first = list[list.length - 1]; // más antiguo
+      const firstW = parseFloat(first.weight);
+      const maxW = Math.max(...weights);
+      if (isNaN(firstW) || firstW <= 0 || maxW <= firstW) return;
+      const day = days.find((d) => d.id === dayId);
+      improved.push({
+        name,
+        color: day ? day.color : "#888",
+        from: firstW,
+        to: maxW,
+        deltaPct: Math.round(((maxW - firstW) / firstW) * 100),
+      });
+    });
+    improved.sort((a, b) => b.deltaPct - a.deltaPct);
+
+    // Notas recientes (con día asociado), más nuevas primero.
+    const notes = Object.entries(sessionNotes)
+      .map(([key, val]) => {
+        const [dayId, date] = splitKey(key);
+        const day = days.find((d) => d.id === dayId);
+        return { dayId, date, day, rpe: val.rpe, note: val.note || "" };
+      })
+      .filter((n) => n.rpe != null || n.note.trim() !== "")
+      .sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
+
+    return {
+      weekly,
+      totalVol,
+      totalSessions: sessionSet.size,
+      improved: improved.slice(0, 5),
+      notes: notes.slice(0, 12),
+    };
+  }, [weightHistory, sessionNotes]);
+
   const dayProgress = activeDay.exercises.map((ex, exIdx) =>
     Array.from({ length: ex.sets }, (_, i) => isSetDone(exIdx, i)).filter(Boolean).length
   );
@@ -481,6 +673,7 @@ export default function GymRoutine({ session }) {
           <div style={{ display: "flex", flexDirection: "column", gap: "4px", marginTop: "4px" }}>
             {[
               { id: "rutina", label: "RUTINA" },
+              { id: "progreso", label: "PROGRESO" },
               { id: "volumen", label: "VOLUMEN" },
               { id: "records", label: "PRs" },
             ].map((v) => (
@@ -563,7 +756,158 @@ export default function GymRoutine({ session }) {
       </div>
 
       <div style={{ padding: "20px 20px 48px" }}>
-        {view === "volumen" ? (
+        {view === "progreso" ? (
+          <div>
+            <div style={{ fontSize: "10px", letterSpacing: "3px", color: "#7E7E7E", marginBottom: "16px" }}>TU PROGRESO</div>
+
+            {/* Resumen: sesiones, kg totales movidos y semana actual */}
+            {(() => {
+              const w = stats.weekly;
+              const cur = w.length ? w[w.length - 1] : null;
+              const prev = w.length > 1 ? w[w.length - 2] : null;
+              const delta = cur && prev && prev.vol > 0 ? Math.round(((cur.vol - prev.vol) / prev.vol) * 100) : null;
+              const cards = [
+                { label: "SESIONES", value: String(stats.totalSessions), sub: "registradas" },
+                { label: "KG MOVIDOS", value: fmtKg(stats.totalVol), sub: "tonelaje total" },
+                {
+                  label: "ESTA SEMANA",
+                  value: cur ? fmtKg(cur.vol) : "0",
+                  sub: delta != null ? `${delta > 0 ? "▲" : delta < 0 ? "▼" : "="} ${Math.abs(delta)}% vs anterior` : "kg movidos",
+                  subColor: delta != null && delta !== 0 ? (delta > 0 ? "#47FF88" : "#FF6B6B") : "#7E7E7E",
+                },
+              ];
+              return (
+                <div style={{ display: "flex", gap: "8px", marginBottom: "20px" }}>
+                  {cards.map((c) => (
+                    <div key={c.label} style={{
+                      flex: 1, background: "#111", border: "1px solid #1A1A1A", borderRadius: "12px",
+                      padding: "12px 10px", textAlign: "center", minWidth: 0,
+                    }}>
+                      <div style={{ fontSize: "20px", fontWeight: "700", color: "#F0F0F0", fontFamily: "'DM Sans', sans-serif", lineHeight: 1 }}>
+                        {c.value}
+                      </div>
+                      <div style={{ fontSize: "8px", letterSpacing: "1px", color: "#8E8E8E", marginTop: "5px", textTransform: "uppercase" }}>
+                        {c.label}
+                      </div>
+                      <div style={{ fontSize: "8px", color: c.subColor || "#7E7E7E", marginTop: "3px" }}>{c.sub}</div>
+                    </div>
+                  ))}
+                </div>
+              );
+            })()}
+
+            {/* Gráfica de volumen semanal */}
+            <div style={{ fontSize: "10px", letterSpacing: "2px", color: "#8E8E8E", marginBottom: "10px", textTransform: "uppercase" }}>
+              Volumen por semana (kg movidos)
+            </div>
+            {(() => {
+              const pts = stats.weekly.slice(-12); // últimas 12 semanas
+              if (pts.length < 2) {
+                return (
+                  <div style={{ fontSize: "11px", color: "#8E8E8E", lineHeight: 1.6, background: "#111", border: "1px solid #1A1A1A", borderRadius: "12px", padding: "16px", marginBottom: "24px" }}>
+                    Registra peso <strong>y repeticiones</strong> en al menos dos semanas distintas y aquí verás cómo evoluciona el total de kilos que mueves. El volumen = peso × repeticiones de cada serie.
+                  </div>
+                );
+              }
+              const W = 320, H = 120, padX = 10, padY = 14;
+              const vols = pts.map((p) => p.vol);
+              const max = Math.max(...vols), min = Math.min(...vols, 0);
+              const range = max - min || 1;
+              const x = (i) => padX + (i * (W - padX * 2)) / (pts.length - 1);
+              const y = (v) => H - padY - ((v - min) / range) * (H - padY * 2);
+              const line = pts.map((p, i) => `${i === 0 ? "M" : "L"} ${x(i).toFixed(1)} ${y(p.vol).toFixed(1)}`).join(" ");
+              const area = `${line} L ${x(pts.length - 1).toFixed(1)} ${H - padY} L ${x(0).toFixed(1)} ${H - padY} Z`;
+              const c = activeDay.color;
+              return (
+                <div style={{ background: "#111", border: "1px solid #1A1A1A", borderRadius: "12px", padding: "14px", marginBottom: "24px" }}>
+                  <svg viewBox={`0 0 ${W} ${H}`} width="100%" height={H} preserveAspectRatio="none" style={{ display: "block" }}>
+                    <defs>
+                      <linearGradient id="g-prog" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor={c} stopOpacity="0.28" />
+                        <stop offset="100%" stopColor={c} stopOpacity="0" />
+                      </linearGradient>
+                    </defs>
+                    <path d={area} fill="url(#g-prog)" />
+                    <path d={line} fill="none" stroke={c} strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
+                    {pts.map((p, i) => (
+                      <circle key={i} cx={x(i)} cy={y(p.vol)} r={i === pts.length - 1 ? 3.5 : 2.2} fill={c} />
+                    ))}
+                  </svg>
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: "8px", color: "#7E7E7E", marginTop: "6px" }}>
+                    <span>{fmtDate(pts[0].week)}</span>
+                    <span>máx {fmtKg(max)} kg · {pts.length} sem</span>
+                    <span>{fmtDate(pts[pts.length - 1].week)}</span>
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* Ejercicios que más subiste */}
+            {stats.improved.length > 0 && (
+              <>
+                <div style={{ fontSize: "10px", letterSpacing: "2px", color: "#8E8E8E", marginBottom: "10px", textTransform: "uppercase" }}>
+                  Ejercicios que más subiste
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: "6px", marginBottom: "24px" }}>
+                  {stats.improved.map((ex) => (
+                    <div key={ex.name} style={{
+                      background: "#111", border: "1px solid #1A1A1A", borderRadius: "10px",
+                      padding: "10px 12px", display: "flex", alignItems: "center", gap: "10px",
+                    }}>
+                      <div style={{ width: "8px", height: "8px", borderRadius: "2px", background: ex.color, flexShrink: 0 }} />
+                      <div style={{ flex: 1, minWidth: 0, fontSize: "12px", color: "#DDD", fontFamily: "'DM Sans', sans-serif", fontWeight: "600", lineHeight: 1.3 }}>
+                        {ex.name}
+                      </div>
+                      <div style={{ fontSize: "9px", color: "#9C9C9C", whiteSpace: "nowrap" }}>{ex.from}→{ex.to} kg</div>
+                      <div style={{ fontSize: "13px", fontWeight: "700", color: "#47FF88", fontFamily: "'DM Sans', sans-serif", whiteSpace: "nowrap" }}>
+                        +{ex.deltaPct}%
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+
+            {/* Notas recientes */}
+            <div style={{ fontSize: "10px", letterSpacing: "2px", color: "#8E8E8E", marginBottom: "10px", textTransform: "uppercase" }}>
+              Notas recientes
+            </div>
+            {stats.notes.length === 0 ? (
+              <div style={{ fontSize: "11px", color: "#8E8E8E", lineHeight: 1.6, background: "#111", border: "1px solid #1A1A1A", borderRadius: "12px", padding: "16px" }}>
+                Aún no has escrito notas. En la pestaña <span style={{ color: activeDay.color }}>RUTINA</span> apunta cómo te sentiste y tu esfuerzo (RPE) de cada sesión; aparecerán aquí.
+              </div>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                {stats.notes.map((n) => {
+                  const rpeColor = n.rpe == null ? "#7E7E7E" : n.rpe >= 9 ? "#FF6B6B" : n.rpe >= 7 ? "#FFD447" : "#47FF88";
+                  return (
+                    <div key={`${n.dayId}::${n.date}`} style={{
+                      background: "#111", border: "1px solid #1A1A1A", borderRadius: "10px", padding: "10px 12px",
+                    }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: n.note ? "5px" : 0 }}>
+                        <div style={{ width: "7px", height: "7px", borderRadius: "2px", background: n.day ? n.day.color : "#888", flexShrink: 0 }} />
+                        <div style={{ fontSize: "9px", letterSpacing: "1px", color: "#9C9C9C", textTransform: "uppercase" }}>
+                          {n.day ? n.day.type : n.dayId} · {fmtDate(n.date)}
+                        </div>
+                        {n.rpe != null && (
+                          <div style={{
+                            marginLeft: "auto", fontSize: "9px", fontWeight: "700", color: "#0A0A0A",
+                            background: rpeColor, padding: "1px 7px", borderRadius: "4px", whiteSpace: "nowrap",
+                          }}>
+                            RPE {n.rpe}
+                          </div>
+                        )}
+                      </div>
+                      {n.note && (
+                        <div style={{ fontSize: "12px", color: "#DDD", lineHeight: 1.5, whiteSpace: "pre-wrap" }}>{n.note}</div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        ) : view === "volumen" ? (
           <div>
             <div style={{ fontSize: "10px", letterSpacing: "3px", color: "#7E7E7E", marginBottom: "16px" }}>SERIES SEMANALES POR MÚSCULO</div>
             <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
@@ -684,6 +1028,77 @@ export default function GymRoutine({ session }) {
               <span style={{ color: activeDay.color }}>CARGA PROGRESIVA — </span>
               Subí 2.5–5kg cuando completes todas las series en el rango alto 2 semanas seguidas.
             </div>
+
+            {/* Nota de la sesión de hoy (esfuerzo + cómo te sentiste) */}
+            {(() => {
+              const today = todayStr();
+              const saved = getSavedNote(activeDay.id, today);
+              const draft = getNoteDraft(activeDay.id, today);
+              const dirty =
+                (draft.rpe ?? null) !== (saved.rpe ?? null) ||
+                (draft.note || "").trim() !== (saved.note || "").trim();
+              const rpeColor = (v) => (v >= 9 ? "#FF6B6B" : v >= 7 ? "#FFD447" : "#47FF88");
+              return (
+                <div style={{
+                  background: "#111", border: "1px solid #1A1A1A", borderRadius: "12px",
+                  padding: "12px 14px", marginBottom: "14px",
+                }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "9px" }}>
+                    <div style={{ fontSize: "9px", letterSpacing: "2px", color: "#8E8E8E", textTransform: "uppercase" }}>
+                      NOTA DE HOY · {fmtDate(today)}
+                    </div>
+                    <button
+                      onClick={() => saveNote(activeDay.id, today)}
+                      disabled={!dirty}
+                      style={{
+                        border: "none", borderRadius: "6px", padding: "5px 10px", fontSize: "9px",
+                        letterSpacing: "1px", fontWeight: "700", fontFamily: "'DM Mono', monospace",
+                        cursor: dirty ? "pointer" : "default",
+                        background: dirty ? activeDay.color : "#161616",
+                        color: dirty ? "#0A0A0A" : "#7E7E7E", transition: "all 0.15s",
+                      }}
+                    >
+                      {dirty ? "GUARDAR" : "✓"}
+                    </button>
+                  </div>
+                  <div style={{ fontSize: "8px", letterSpacing: "1px", color: "#7E7E7E", marginBottom: "6px", textTransform: "uppercase" }}>
+                    Esfuerzo percibido (RPE 1–10)
+                  </div>
+                  <div style={{ display: "flex", gap: "4px", flexWrap: "wrap", marginBottom: "10px" }}>
+                    {Array.from({ length: 10 }, (_, i) => i + 1).map((v) => {
+                      const active = draft.rpe === v;
+                      return (
+                        <button
+                          key={v}
+                          onClick={() => setNoteDraft(activeDay.id, today, { rpe: active ? null : v })}
+                          style={{
+                            width: "26px", height: "26px", borderRadius: "6px", cursor: "pointer",
+                            border: `1px solid ${active ? rpeColor(v) : "#222"}`,
+                            background: active ? rpeColor(v) : "transparent",
+                            color: active ? "#0A0A0A" : "#9C9C9C", fontSize: "11px", fontWeight: "700",
+                            fontFamily: "'DM Mono', monospace", transition: "all 0.12s",
+                          }}
+                        >
+                          {v}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <textarea
+                    placeholder="¿Cómo te sentiste? energía, dolores, sueño, ánimo…"
+                    value={draft.note || ""}
+                    onChange={(e) => setNoteDraft(activeDay.id, today, { note: e.target.value })}
+                    rows={2}
+                    style={{
+                      width: "100%", boxSizing: "border-box", background: "#0A0A0A",
+                      border: "1px solid #1A1A1A", borderRadius: "8px", padding: "8px 10px",
+                      color: "#F0F0F0", fontSize: "12px", fontFamily: "'DM Mono', monospace",
+                      resize: "vertical", outline: "none", lineHeight: 1.5,
+                    }}
+                  />
+                </div>
+              );
+            })()}
 
             <div style={{ display: "flex", flexDirection: "column", gap: "9px" }}>
               {activeDay.exercises.map((ex, exIdx) => {

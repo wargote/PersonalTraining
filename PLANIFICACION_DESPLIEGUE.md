@@ -116,6 +116,37 @@ create policy "own rows - delete" on public.exercise_logs
   for delete using (auth.uid() = user_id);
 ```
 
+### Tabla `session_notes` (notas + RPE por sesión)
+
+Guarda una nota y el esfuerzo percibido (RPE 1–10) por cada sesión (día + fecha).
+La app funciona sin esta tabla (las notas quedan en `localStorage`), pero **para
+que se sincronicen entre dispositivos hay que crearla**. Pegar en el SQL Editor:
+
+```sql
+create table public.session_notes (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  day_id text not null,
+  log_date date not null,
+  rpe int,
+  note text,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now(),
+  unique (user_id, day_id, log_date)
+);
+
+alter table public.session_notes enable row level security;
+
+create policy "own notes - select" on public.session_notes
+  for select using (auth.uid() = user_id);
+create policy "own notes - insert" on public.session_notes
+  for insert with check (auth.uid() = user_id);
+create policy "own notes - update" on public.session_notes
+  for update using (auth.uid() = user_id);
+create policy "own notes - delete" on public.session_notes
+  for delete using (auth.uid() = user_id);
+```
+
 ### Mapeo desde el `localStorage` actual
 
 Hoy guardas en la clave `gym-weight-history`:

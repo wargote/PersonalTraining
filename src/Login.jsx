@@ -39,7 +39,7 @@ export default function Login() {
       }}
     >
       <div style={{ width: "100%", maxWidth: "360px" }}>
-        <div style={{ fontSize: "10px", letterSpacing: "4px", color: "#444", textTransform: "uppercase", marginBottom: "6px" }}>
+        <div style={{ fontSize: "10px", letterSpacing: "4px", color: "#8E8E8E", textTransform: "uppercase", marginBottom: "6px" }}>
           Torso · Pierna · Empuje · Tirón
         </div>
         <h1
@@ -77,7 +77,7 @@ export default function Login() {
               onClick={() => { setStatus("idle"); setEmail(""); }}
               style={{
                 display: "block", marginTop: "14px", background: "transparent",
-                border: "none", color: "#555", fontSize: "10px", letterSpacing: "1px",
+                border: "none", color: "#9C9C9C", fontSize: "10px", letterSpacing: "1px",
                 cursor: "pointer", fontFamily: "'DM Mono', monospace", padding: 0,
               }}
             >
@@ -86,7 +86,7 @@ export default function Login() {
           </div>
         ) : (
           <form onSubmit={sendLink}>
-            <label style={{ fontSize: "9px", letterSpacing: "2px", color: "#555", textTransform: "uppercase" }}>
+            <label style={{ fontSize: "9px", letterSpacing: "2px", color: "#9C9C9C", textTransform: "uppercase" }}>
               Entrar con tu correo
             </label>
             <input
@@ -121,7 +121,7 @@ export default function Login() {
                 borderRadius: "10px",
                 border: "none",
                 background: status === "sending" ? "#161616" : "#E8FF47",
-                color: status === "sending" ? "#555" : "#0A0A0A",
+                color: status === "sending" ? "#9C9C9C" : "#0A0A0A",
                 fontSize: "11px",
                 fontWeight: 700,
                 letterSpacing: "2px",
@@ -136,7 +136,7 @@ export default function Login() {
                 {error}
               </div>
             )}
-            <div style={{ marginTop: "16px", fontSize: "10px", color: "#333", lineHeight: 1.6 }}>
+            <div style={{ marginTop: "16px", fontSize: "10px", color: "#7E7E7E", lineHeight: 1.6 }}>
               Sin contraseñas: te llega un enlace al correo y con eso entras. Tus
               registros quedan guardados y sincronizados entre tus dispositivos.
             </div>

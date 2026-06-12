@@ -463,7 +463,7 @@ export default function GymRoutine({ session }) {
       <div style={{ padding: "28px 20px 0", borderBottom: "1px solid #1A1A1A" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
           <div>
-            <div style={{ fontSize: "10px", letterSpacing: "4px", color: "#444", textTransform: "uppercase", marginBottom: "6px" }}>
+            <div style={{ fontSize: "10px", letterSpacing: "4px", color: "#8E8E8E", textTransform: "uppercase", marginBottom: "6px" }}>
               Torso · Pierna · Empuje · Tirón
             </div>
             <h1 style={{
@@ -491,7 +491,7 @@ export default function GymRoutine({ session }) {
                   background: view === v.id ? activeDay.color : "transparent",
                   border: `1px solid ${view === v.id ? activeDay.color : "#222"}`,
                   borderRadius: "8px",
-                  color: view === v.id ? "#0A0A0A" : "#555",
+                  color: view === v.id ? "#0A0A0A" : "#9C9C9C",
                   fontSize: "9px",
                   fontWeight: view === v.id ? "700" : "400",
                   letterSpacing: "2px",
@@ -511,7 +511,7 @@ export default function GymRoutine({ session }) {
                 background: "transparent",
                 border: "1px solid #222",
                 borderRadius: "8px",
-                color: "#555",
+                color: "#9C9C9C",
                 fontSize: "9px",
                 letterSpacing: "2px",
                 padding: "6px 12px",
@@ -539,7 +539,7 @@ export default function GymRoutine({ session }) {
                   flex: "0 0 auto",
                   padding: "10px 12px",
                   background: isActive ? activeDay.color : isRest ? "#0D0D0D" : "#141414",
-                  color: isActive ? "#0A0A0A" : isRest ? "#222" : "#555",
+                  color: isActive ? "#0A0A0A" : isRest ? "#222" : "#9C9C9C",
                   border: "none",
                   borderRadius: "8px 8px 0 0",
                   cursor: isRest ? "default" : "pointer",
@@ -553,7 +553,7 @@ export default function GymRoutine({ session }) {
                 }}
               >
                 {label}
-                <div style={{ fontSize: "8px", marginTop: "2px", color: isActive ? "#0A0A0A77" : isRest ? "#1A1A1A" : "#2A2A2A" }}>
+                <div style={{ fontSize: "8px", marginTop: "2px", color: isActive ? "#0A0A0A77" : isRest ? "#1A1A1A" : "#5A5A5A" }}>
                   {isRest ? "REST" : day.type}
                 </div>
               </button>
@@ -565,7 +565,7 @@ export default function GymRoutine({ session }) {
       <div style={{ padding: "20px 20px 48px" }}>
         {view === "volumen" ? (
           <div>
-            <div style={{ fontSize: "10px", letterSpacing: "3px", color: "#333", marginBottom: "16px" }}>SERIES SEMANALES POR MÚSCULO</div>
+            <div style={{ fontSize: "10px", letterSpacing: "3px", color: "#7E7E7E", marginBottom: "16px" }}>SERIES SEMANALES POR MÚSCULO</div>
             <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
               {volumeSummary.map(({ m, s, days: d }) => (
                 <div key={m} style={{
@@ -575,7 +575,7 @@ export default function GymRoutine({ session }) {
                   <div style={{ width: "8px", height: "8px", borderRadius: "50%", background: muscleColors[m] || "#888", flexShrink: 0 }} />
                   <div style={{ flex: 1 }}>
                     <div style={{ fontSize: "12px", color: "#DDD", fontFamily: "'DM Sans', sans-serif", fontWeight: "600" }}>{m}</div>
-                    <div style={{ fontSize: "10px", color: "#333", marginTop: "2px" }}>{d}</div>
+                    <div style={{ fontSize: "10px", color: "#7E7E7E", marginTop: "2px" }}>{d}</div>
                   </div>
                   <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                     <div style={{ width: "60px", height: "4px", background: "#1A1A1A", borderRadius: "2px", overflow: "hidden" }}>
@@ -589,7 +589,7 @@ export default function GymRoutine({ session }) {
           </div>
         ) : view === "records" ? (
           <div>
-            <div style={{ fontSize: "10px", letterSpacing: "3px", color: "#333", marginBottom: "16px" }}>RÉCORDS PERSONALES POR EJERCICIO</div>
+            <div style={{ fontSize: "10px", letterSpacing: "3px", color: "#7E7E7E", marginBottom: "16px" }}>RÉCORDS PERSONALES POR EJERCICIO</div>
             {(() => {
               const dayGroups = days.map((day) => {
                 const rows = day.exercises
@@ -604,7 +604,7 @@ export default function GymRoutine({ session }) {
 
               if (dayGroups.length === 0) {
                 return (
-                  <div style={{ fontSize: "11px", color: "#444", lineHeight: 1.6, background: "#111", border: "1px solid #1A1A1A", borderRadius: "12px", padding: "16px" }}>
+                  <div style={{ fontSize: "11px", color: "#8E8E8E", lineHeight: 1.6, background: "#111", border: "1px solid #1A1A1A", borderRadius: "12px", padding: "16px" }}>
                     Aún no tienes récords. Registra el peso y las reps de un ejercicio en la pestaña <span style={{ color: activeDay.color }}>RUTINA</span> y aparecerán aquí.
                   </div>
                 );
@@ -630,7 +630,7 @@ export default function GymRoutine({ session }) {
                               <div style={{ fontSize: "12px", color: "#DDD", fontFamily: "'DM Sans', sans-serif", fontWeight: "600", lineHeight: 1.3 }}>
                                 {ex.name}
                               </div>
-                              <div style={{ fontSize: "9px", color: "#333", marginTop: "2px", letterSpacing: "1px" }}>
+                              <div style={{ fontSize: "9px", color: "#7E7E7E", marginTop: "2px", letterSpacing: "1px" }}>
                                 {fmtDate(pr.date)} · {sessions} {sessions === 1 ? "sesión" : "sesiones"}
                               </div>
                             </div>
@@ -639,7 +639,7 @@ export default function GymRoutine({ session }) {
                                 {pr.weight} kg
                               </div>
                               {pr.reps.length > 0 && (
-                                <div style={{ fontSize: "9px", color: "#555", marginTop: "1px" }}>
+                                <div style={{ fontSize: "9px", color: "#9C9C9C", marginTop: "1px" }}>
                                   {pr.reps.join("/")} reps
                                 </div>
                               )}
@@ -660,7 +660,7 @@ export default function GymRoutine({ session }) {
                 <div style={{ fontSize: "10px", letterSpacing: "3px", color: activeDay.color, textTransform: "uppercase", marginBottom: "4px" }}>
                   {activeDay.type} — {activeDay.fullLabel}
                 </div>
-                <div style={{ fontSize: "12px", color: "#555" }}>{activeDay.focus}</div>
+                <div style={{ fontSize: "12px", color: "#9C9C9C" }}>{activeDay.focus}</div>
               </div>
               <div style={{
                 background: activeDay.color + "15", border: `1px solid ${activeDay.color}30`,
@@ -669,7 +669,7 @@ export default function GymRoutine({ session }) {
                 <div style={{ fontSize: "18px", fontWeight: "700", color: activeDay.color, fontFamily: "'DM Sans', sans-serif" }}>
                   {doneSets}/{totalSets}
                 </div>
-                <div style={{ fontSize: "8px", color: "#333", letterSpacing: "1px" }}>SERIES</div>
+                <div style={{ fontSize: "8px", color: "#7E7E7E", letterSpacing: "1px" }}>SERIES</div>
               </div>
             </div>
 
@@ -679,7 +679,7 @@ export default function GymRoutine({ session }) {
 
             <div style={{
               background: "#111", borderLeft: `3px solid ${activeDay.color}`, borderRadius: "0 8px 8px 0",
-              padding: "10px 14px", marginBottom: "14px", fontSize: "10px", color: "#444", lineHeight: 1.6,
+              padding: "10px 14px", marginBottom: "14px", fontSize: "10px", color: "#8E8E8E", lineHeight: 1.6,
             }}>
               <span style={{ color: activeDay.color }}>CARGA PROGRESIVA — </span>
               Subí 2.5–5kg cuando completes todas las series en el rango alto 2 semanas seguidas.
@@ -712,13 +712,13 @@ export default function GymRoutine({ session }) {
                         }}>
                           {ex.name}
                         </div>
-                        <div style={{ fontSize: "10px", color: "#333", lineHeight: 1.4 }}>{ex.note}</div>
+                        <div style={{ fontSize: "10px", color: "#7E7E7E", lineHeight: 1.4 }}>{ex.note}</div>
                       </div>
                       <div style={{ textAlign: "right", flexShrink: 0 }}>
                         <div style={{ fontSize: "15px", fontWeight: "700", color: activeDay.color, fontFamily: "'DM Sans', sans-serif" }}>
                           {ex.sets}×{ex.reps}
                         </div>
-                        <div style={{ fontSize: "9px", color: "#2A2A2A", marginTop: "2px" }}>{completedCount}/{ex.sets}</div>
+                        <div style={{ fontSize: "9px", color: "#5A5A5A", marginTop: "2px" }}>{completedCount}/{ex.sets}</div>
                       </div>
                     </div>
                     {/* Peso + historial */}
@@ -750,13 +750,13 @@ export default function GymRoutine({ session }) {
                           }}>
                             {last ? (
                               <>
-                                <span style={{ color: "#333", textTransform: "uppercase" }}>
+                                <span style={{ color: "#7E7E7E", textTransform: "uppercase" }}>
                                   {savedToday ? "HOY" : "ÚLTIMO"}
                                 </span>
                                 <span style={{ color: "#888", fontWeight: "700", fontFamily: "'DM Sans', sans-serif", fontSize: "11px" }}>
                                   {last.weight} kg{lastReps.length ? ` · ${lastReps.join("/")}` : ""}
                                 </span>
-                                <span style={{ color: "#2A2A2A" }}>· {fmtDate(last.date)}</span>
+                                <span style={{ color: "#5A5A5A" }}>· {fmtDate(last.date)}</span>
                                 {delta !== null && delta !== 0 && (
                                   <span style={{
                                     color: delta > 0 ? "#47FF88" : "#FF6B6B",
@@ -768,7 +768,7 @@ export default function GymRoutine({ session }) {
                                 )}
                               </>
                             ) : (
-                              <span style={{ color: "#2A2A2A", textTransform: "uppercase" }}>Sin registro previo</span>
+                              <span style={{ color: "#5A5A5A", textTransform: "uppercase" }}>Sin registro previo</span>
                             )}
                             {pr && (
                               <span style={{
@@ -784,7 +784,7 @@ export default function GymRoutine({ session }) {
                                 onClick={() => toggleHistory(activeDay.id, ex.name)}
                                 style={{
                                   marginLeft: "auto", background: "transparent", border: "none",
-                                  color: "#444", fontSize: "9px", letterSpacing: "1px", cursor: "pointer",
+                                  color: "#8E8E8E", fontSize: "9px", letterSpacing: "1px", cursor: "pointer",
                                   fontFamily: "'DM Mono', monospace", padding: 0,
                                 }}
                               >
@@ -799,7 +799,7 @@ export default function GymRoutine({ session }) {
                             padding: "8px 10px", background: "#0A0A0A",
                             borderRadius: "8px", border: "1px solid #1A1A1A",
                           }}>
-                            <div style={{ fontSize: "8px", letterSpacing: "2px", color: "#333", textTransform: "uppercase", flexShrink: 0 }}>PESO</div>
+                            <div style={{ fontSize: "8px", letterSpacing: "2px", color: "#7E7E7E", textTransform: "uppercase", flexShrink: 0 }}>PESO</div>
                             <input
                               type="number"
                               inputMode="decimal"
@@ -813,8 +813,8 @@ export default function GymRoutine({ session }) {
                                 fontFamily: "'DM Sans', sans-serif", textAlign: "center",
                               }}
                             />
-                            <div style={{ fontSize: "10px", color: "#333", flexShrink: 0 }}>kg</div>
-                            <div style={{ fontSize: "8px", color: "#2A2A2A", letterSpacing: "1px", flexShrink: 0 }}>· mismo peso todas las series</div>
+                            <div style={{ fontSize: "10px", color: "#7E7E7E", flexShrink: 0 }}>kg</div>
+                            <div style={{ fontSize: "8px", color: "#5A5A5A", letterSpacing: "1px", flexShrink: 0 }}>· mismo peso todas las series</div>
                             <div style={{ flex: 1 }} />
                             <button
                               onClick={() => saveWeight(activeDay.id, ex.name, ex.sets)}
@@ -825,7 +825,7 @@ export default function GymRoutine({ session }) {
                                 fontWeight: "700", fontFamily: "'DM Mono', monospace",
                                 cursor: dirty ? "pointer" : "default",
                                 background: dirty ? activeDay.color : "#161616",
-                                color: dirty ? "#0A0A0A" : "#333",
+                                color: dirty ? "#0A0A0A" : "#7E7E7E",
                                 transition: "all 0.15s",
                               }}
                             >
@@ -847,7 +847,7 @@ export default function GymRoutine({ session }) {
                                   .filter((p) => !isNaN(p.w));
                                 if (pts.length < 2) {
                                   return (
-                                    <div style={{ fontSize: "9px", color: "#333", marginBottom: "4px", lineHeight: 1.5 }}>
+                                    <div style={{ fontSize: "9px", color: "#7E7E7E", marginBottom: "4px", lineHeight: 1.5 }}>
                                       Registra el peso en otra sesión (otro día) para ver la gráfica de evolución.
                                     </div>
                                   );
@@ -876,7 +876,7 @@ export default function GymRoutine({ session }) {
                                         <circle key={i} cx={x(i)} cy={y(p.w)} r={i === pts.length - 1 ? 3 : 2} fill={c} />
                                       ))}
                                     </svg>
-                                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: "8px", color: "#333", marginTop: "2px" }}>
+                                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: "8px", color: "#7E7E7E", marginTop: "2px" }}>
                                       <span>{min} kg</span>
                                       <span>{pts.length} sesiones · máx {max} kg</span>
                                     </div>
@@ -891,9 +891,9 @@ export default function GymRoutine({ session }) {
                                 return (
                                   <div key={entry.date} style={{
                                     display: "flex", alignItems: "center", gap: "8px",
-                                    fontSize: "10px", color: "#666",
+                                    fontSize: "10px", color: "#AAAAAA",
                                   }}>
-                                    <span style={{ color: "#444", minWidth: "44px" }}>{fmtDate(entry.date)}</span>
+                                    <span style={{ color: "#8E8E8E", minWidth: "44px" }}>{fmtDate(entry.date)}</span>
                                     <span style={{ color: "#AAA", fontWeight: "700", fontFamily: "'DM Sans', sans-serif" }}>
                                       {entry.weight} kg{normalizeReps(entry).length ? ` · ${normalizeReps(entry).join("/")}` : ""}
                                     </span>
@@ -907,7 +907,7 @@ export default function GymRoutine({ session }) {
                                       onClick={() => deleteEntry(activeDay.id, ex.name, entry.date)}
                                       style={{
                                         marginLeft: "auto", background: "transparent", border: "none",
-                                        color: "#333", fontSize: "12px", cursor: "pointer", padding: "0 2px",
+                                        color: "#7E7E7E", fontSize: "12px", cursor: "pointer", padding: "0 2px",
                                         lineHeight: 1,
                                       }}
                                       title="Eliminar registro"
@@ -938,7 +938,7 @@ export default function GymRoutine({ session }) {
                               transition: "all 0.12s",
                             }}
                           >
-                            <span style={{ fontSize: "8px", color: "#444", fontFamily: "'DM Mono', monospace", letterSpacing: "1px" }}>
+                            <span style={{ fontSize: "8px", color: "#8E8E8E", fontFamily: "'DM Mono', monospace", letterSpacing: "1px" }}>
                               S{setIdx + 1}
                             </span>
                             <input
@@ -950,7 +950,7 @@ export default function GymRoutine({ session }) {
                               onKeyDown={(e) => { if (e.key === "Enter") { saveWeight(activeDay.id, ex.name, ex.sets); e.target.blur(); } }}
                               style={{
                                 width: "32px", background: "transparent", border: "none", outline: "none",
-                                color: getRepDraft(activeDay.id, ex.name, setIdx) !== "" ? "#F0F0F0" : "#555",
+                                color: getRepDraft(activeDay.id, ex.name, setIdx) !== "" ? "#F0F0F0" : "#9C9C9C",
                                 fontSize: "13px", fontWeight: "700", fontFamily: "'DM Sans', sans-serif", textAlign: "center",
                               }}
                             />
@@ -961,7 +961,7 @@ export default function GymRoutine({ session }) {
                                 width: "24px", height: "24px", borderRadius: "6px", flexShrink: 0,
                                 border: `1px solid ${done ? activeDay.color : "#222"}`,
                                 background: done ? activeDay.color : "transparent",
-                                color: done ? "#0A0A0A" : "#2A2A2A",
+                                color: done ? "#0A0A0A" : "#5A5A5A",
                                 fontSize: "11px", fontWeight: "700", cursor: "pointer",
                                 transition: "all 0.12s", fontFamily: "'DM Mono', monospace",
                                 display: "flex", alignItems: "center", justifyContent: "center",

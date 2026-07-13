@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
-import { supabase } from "./supabaseClient";
-import GymRoutine from "./rutina_hipertrofia";
+import { supabase } from "./lib/supabaseClient";
+import GymRoutine from "./components/GymRoutine";
 import Login from "./Login";
 
 function Splash() {
@@ -38,8 +38,12 @@ function App() {
     return () => sub.subscription.unsubscribe();
   }, []);
 
+  const demoLogin = import.meta.env.DEV
+    ? () => setSession({ user: { id: "demo-user", email: "demo@local" } })
+    : undefined;
+
   if (loading) return <Splash />;
-  if (!session) return <Login />;
+  if (!session) return <Login onDemoLogin={demoLogin} />;
   return <GymRoutine session={session} />;
 }
 

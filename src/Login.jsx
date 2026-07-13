@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { supabase } from "./supabaseClient";
+import { supabase } from "./lib/supabaseClient";
 
-export default function Login() {
+export default function Login({ onDemoLogin }) {
   const [email, setEmail] = useState("");
   const [status, setStatus] = useState("idle"); // idle | sending | sent | error
   const [error, setError] = useState("");
@@ -141,6 +141,28 @@ export default function Login() {
               registros quedan guardados y sincronizados entre tus dispositivos.
             </div>
           </form>
+        )}
+
+        {import.meta.env.DEV && onDemoLogin && (
+          <button
+            onClick={onDemoLogin}
+            style={{
+              display: "block",
+              width: "100%",
+              marginTop: "24px",
+              padding: "10px",
+              borderRadius: "10px",
+              border: "1px dashed #333",
+              background: "transparent",
+              color: "#7E7E7E",
+              fontSize: "10px",
+              letterSpacing: "1px",
+              fontFamily: "'DM Mono', monospace",
+              cursor: "pointer",
+            }}
+          >
+            🧪 MODO DEMO (solo dev, sin datos reales)
+          </button>
         )}
       </div>
     </div>

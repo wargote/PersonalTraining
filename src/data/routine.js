@@ -98,26 +98,3 @@ export const muscleColors = {
   Aductores: "#FF8A47",
 };
 
-export const allDayOrder = [
-  { label: "LUN", dayId: "lunes" },
-  { label: "MAR", dayId: "martes" },
-  { label: "MIÉ", dayId: null },
-  { label: "JUE", dayId: "jueves" },
-  { label: "VIE", dayId: "viernes" },
-  { label: "SÁB", dayId: "sabado" },
-  { label: "DOM", dayId: null },
-];
-
-export const volumeSummary = [
-  { m: "Pecho", s: 14, days: "Lun + Jue" },
-  { m: "Espalda", s: 14, days: "Lun + Sáb" },
-  { m: "Hombro", s: 9, days: "Lun + Jue" },
-  { m: "Bíceps", s: 10, days: "Lun + Sáb" },
-  { m: "Tríceps", s: 9, days: "Lun + Jue" },
-  { m: "Trapecio", s: 3, days: "Sáb" },
-  { m: "Cuádriceps", s: 10, days: "Mar + Vie" },
-  { m: "Femoral", s: 10, days: "Mar + Vie" },
-  { m: "Glúteo", s: 9, days: "Mar + Vie" },
-  { m: "Aductores", s: 6, days: "Mar + Vie" },
-  { m: "Pantorrilla", s: 8, days: "Mar + Vie" },
-];

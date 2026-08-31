@@ -1,7 +1,6 @@
-import { muscleColors } from "../data/routine";
 import { normalizeReps, weightsLabel, getPR, fmtDate } from "../lib/logs";
 
-export default function ExerciseCard({ ex, exIdx, activeDay, workout, completedCount }) {
+export default function ExerciseCard({ ex, exIdx, activeDay, workout, completedCount, muscleColors }) {
   const dayId = activeDay.id;
   const name = ex.name;
   const allDone = completedCount === ex.sets;

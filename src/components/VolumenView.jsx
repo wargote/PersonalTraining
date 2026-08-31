@@ -1,6 +1,7 @@
-import { volumeSummary, muscleColors } from "../data/routine";
+import { computeVolumeSummary } from "../lib/routine";
 
-export default function VolumenView() {
+export default function VolumenView({ days, muscleColors }) {
+  const volumeSummary = computeVolumeSummary(days);
   return (
     <div>
       <div style={{ fontSize: "10px", letterSpacing: "3px", color: "#7E7E7E", marginBottom: "16px" }}>SERIES SEMANALES POR MÚSCULO</div>

@@ -1,6 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
 import { supabase } from "../lib/supabaseClient";
-import { days } from "../data/routine";
 import {
   splitKey,
   repsToIntArray,
@@ -17,7 +16,7 @@ const getWeightKey = (dayId, exerciseName) => `${dayId}::${exerciseName}`;
 const todayStr = () => new Date().toISOString().slice(0, 10);
 const noteKey = (dayId, date) => `${dayId}::${date}`;
 
-export default function useWorkoutData(session) {
+export default function useWorkoutData(session, days = []) {
   const userId = session.user.id;
   const userEmail = session.user.email;
 
@@ -508,7 +507,7 @@ export default function useWorkoutData(session) {
       improved: improved.slice(0, 5),
       notes: notes.slice(0, 12),
     };
-  }, [weightHistory, sessionNotes]);
+  }, [weightHistory, sessionNotes, days]);
 
   return {
     userId,

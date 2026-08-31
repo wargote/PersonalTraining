@@ -1,10 +1,10 @@
-import { days, allDayOrder } from "../data/routine";
+import { weekdays } from "../lib/routine";
 
-export default function DayTabs({ activeDay, setActiveDay }) {
+export default function DayTabs({ activeDay, setActiveDay, days }) {
   return (
     <div style={{ display: "flex", gap: "3px", overflowX: "auto", scrollbarWidth: "none", marginBottom: "20px" }}>
-      {allDayOrder.map(({ label, dayId }) => {
-        const day = days.find((d) => d.id === dayId);
+      {weekdays.map(({ id, label }) => {
+        const day = days.find((d) => d.id === id);
         const isRest = !day;
         const isActive = day && day.id === activeDay.id;
         return (

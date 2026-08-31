@@ -1,4 +1,4 @@
-export default function PerfilView({ userEmail, syncState, logout, activeDay }) {
+export default function PerfilView({ userEmail, syncState, logout, activeDay, onEditRoutine }) {
   const syncLabel = syncState === "loading" ? "SINCRONIZANDO..." : syncState === "error" ? "⚠ SIN CONEXIÓN" : "✓ SINCRONIZADO";
   const syncColor = syncState === "loading" ? "#8E8E8E" : syncState === "error" ? "#FF6B6B" : "#47FF88";
 
@@ -28,9 +28,20 @@ export default function PerfilView({ userEmail, syncState, logout, activeDay }) 
         background: "#111", border: "1px solid #1A1A1A", borderRadius: "12px",
         padding: "16px", marginBottom: "10px",
       }}>
-        <div style={{ fontSize: "8px", letterSpacing: "2px", color: "#7E7E7E", textTransform: "uppercase", marginBottom: "8px" }}>
-          Ajustes
+        <div style={{ fontSize: "8px", letterSpacing: "2px", color: "#7E7E7E", textTransform: "uppercase", marginBottom: "10px" }}>
+          Rutina
         </div>
+        <button
+          onClick={onEditRoutine}
+          style={{
+            width: "100%", border: `1px solid ${activeDay.color}30`, borderRadius: "10px",
+            background: "transparent", color: activeDay.color, fontSize: "10px",
+            fontWeight: "700", letterSpacing: "2px", padding: "12px",
+            cursor: "pointer", fontFamily: "'DM Mono', monospace", marginBottom: "10px",
+          }}
+        >
+          ✏️ EDITAR RUTINA
+        </button>
         <div style={{ fontSize: "11px", color: "#5A5A5A", lineHeight: 1.6 }}>
           Unidades (kg/lb), tema y exportar datos — próximamente.
         </div>

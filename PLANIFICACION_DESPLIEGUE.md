@@ -147,6 +147,65 @@ create policy "own notes - delete" on public.session_notes
   for delete using (auth.uid() = user_id);
 ```
 
+### Tabla `routines` (rutina editable, un documento por usuario)
+
+La rutina (días, ejercicios, series, colores) **ya no vive fija en el código**:
+se guarda en Supabase y se edita desde la app (pantalla "Editar rutina" en
+Perfil). Pegar en el SQL Editor:
+
+```sql
+create table public.routines (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade unique,
+  data jsonb not null default '{"days": [], "muscleColors": {}}',
+  updated_at timestamptz default now()
+);
+
+alter table public.routines enable row level security;
+
+create policy "own routine - select" on public.routines
+  for select using (auth.uid() = user_id);
+create policy "own routine - insert" on public.routines
+  for insert with check (auth.uid() = user_id);
+create policy "own routine - update" on public.routines
+  for update using (auth.uid() = user_id);
+create policy "own routine - delete" on public.routines
+  for delete using (auth.uid() = user_id);
+```
+
+`user_id` es `unique` → una sola fila por usuario (una rutina activa). El
+campo `data` reproduce la forma de `src/data/routine.js`: `{ days: [...],
+muscleColors: {...} }`. Si esta tabla todavía no existe, la app funciona
+igual usando la rutina hardcodeada como si fuera de solo lectura (no se
+puede guardar hasta crear la tabla).
+
+### Tabla `exercise_library` (biblioteca de ejercicios para autocompletar)
+
+```sql
+create table public.exercise_library (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  name text not null,
+  muscle text not null,
+  created_at timestamptz default now(),
+  unique (user_id, name)
+);
+
+alter table public.exercise_library enable row level security;
+
+create policy "own library - select" on public.exercise_library
+  for select using (auth.uid() = user_id);
+create policy "own library - insert" on public.exercise_library
+  for insert with check (auth.uid() = user_id);
+create policy "own library - update" on public.exercise_library
+  for update using (auth.uid() = user_id);
+create policy "own library - delete" on public.exercise_library
+  for delete using (auth.uid() = user_id);
+```
+
+Se llena sola: cada vez que agregás un ejercicio nuevo en el editor de
+rutina, se guarda acá para poder autocompletarlo la próxima vez.
+
 ### Mapeo desde el `localStorage` actual
 
 Hoy guardas en la clave `gym-weight-history`:

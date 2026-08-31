@@ -137,11 +137,11 @@ modo que los componentes de vista queden casi solo de presentación.
 
 ## Orden de implementación sugerido
 
-1. **Extraer datos y helpers** a `data/` y `lib/` sin cambiar comportamiento (base para todo lo demás).
-2. **Menú inferior + Perfil** (bajo riesgo, visual): `BottomNav`, mover Salir/sync a `PerfilView`, meter días dentro de Rutina.
-3. **Migración de esquema**: correr el `alter table` de `weights[]` en Supabase.
-4. **Registro por serie**: rediseñar `ExerciseCard` a filas por serie con ± y check-guarda; adaptar el guardado a `weights[]`.
-5. **Pulido**: safe-area, padding inferior, transiciones; revisar Progreso/Volumen/PRs con la nueva navegación.
+1. ✅ **Extraer datos y helpers** a `data/` y `lib/` sin cambiar comportamiento (base para todo lo demás).
+2. ✅ **Menú inferior + Perfil** (bajo riesgo, visual): `BottomNav`, mover Salir/sync a `PerfilView`, meter días dentro de Rutina.
+3. ✅ **Migración de esquema**: `alter table` de `weights[]` y `create table session_notes` ya corridos en Supabase (verificado contra el proyecto real: ambas columnas/tabla responden 200, no `42703`).
+4. ✅ **Registro por serie**: `ExerciseCard` ya rediseñado a filas por serie con ± y check-guarda; guardado usa `weights[]` (`useWorkoutData.js`).
+5. ✅ **Pulido**: safe-area y padding inferior ya estaban; se agregó transición fade-in al cambiar de pestaña (`view-transition` en `index.css` + `GymRoutine.jsx`); se revisó Progreso/Volumen/PRs/Perfil en el navegador (modo demo) sin errores de consola.
 
 ---
 

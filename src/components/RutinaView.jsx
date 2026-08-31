@@ -2,7 +2,7 @@ import DayTabs from "./DayTabs";
 import ExerciseCard from "./ExerciseCard";
 import { fmtDate } from "../lib/logs";
 
-export default function RutinaView({ activeDay, setActiveDay, workout }) {
+export default function RutinaView({ activeDay, setActiveDay, workout, days, muscleColors }) {
   const dayProgress = activeDay.exercises.map((ex) =>
     Array.from({ length: ex.sets }, (_, i) => workout.isSetDone(activeDay.id, ex.name, i)).filter(Boolean).length
   );
@@ -20,7 +20,7 @@ export default function RutinaView({ activeDay, setActiveDay, workout }) {
 
   return (
     <>
-      <DayTabs activeDay={activeDay} setActiveDay={setActiveDay} />
+      <DayTabs activeDay={activeDay} setActiveDay={setActiveDay} days={days} />
 
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "14px" }}>
         <div>
@@ -121,6 +121,7 @@ export default function RutinaView({ activeDay, setActiveDay, workout }) {
             activeDay={activeDay}
             workout={workout}
             completedCount={dayProgress[exIdx]}
+            muscleColors={muscleColors}
           />
         ))}
       </div>

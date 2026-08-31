@@ -1,7 +1,6 @@
-import { days } from "../data/routine";
 import { getPR, fmtDate } from "../lib/logs";
 
-export default function RecordsView({ workout, activeDay }) {
+export default function RecordsView({ workout, activeDay, days }) {
   const dayGroups = days.map((day) => {
     const rows = day.exercises
       .map((ex) => {
